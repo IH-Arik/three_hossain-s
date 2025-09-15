@@ -18,30 +18,6 @@ def now_iso() -> str:
     return datetime.utcnow().isoformat(timespec='seconds') + 'Z'
 
 
-# Seeding helpers
-def seed_sample_data(min_voters: int = 25, min_candidates: int = 3) -> None:
-    # Seed voters up to at least min_voters
-    start_id = 1000
-    while len(voters) < min_voters:
-        vid = start_id + len(voters)
-        voters[vid] = {
-            'voter_id': vid,
-            'name': f'Voter {vid}',
-            'age': 18 + (vid % 50),
-            'has_voted': False
-        }
-    # Seed candidates up to at least min_candidates
-    start_cid = 200
-    while len(candidates) < min_candidates:
-        cid = start_cid + len(candidates)
-        candidates[cid] = {
-            'candidate_id': cid,
-            'name': f'Candidate {cid}',
-            'party': ['Blue', 'Red', 'Green'][cid % 3],
-            'votes': 0
-        }
-
-
 # Root and health endpoints to avoid 404 on base URL
 @app.route('/', methods=['GET'])
 def index():
@@ -56,23 +32,6 @@ def index():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy'}), 200
-
-
-# Dev utility: bulk seed voters/candidates
-@app.route('/api/dev/seed', methods=['POST'])
-def dev_seed():
-    data = request.get_json(force=True, silent=True) or {}
-    min_v = int(data.get('voters', 25))
-    min_c = int(data.get('candidates', 3))
-    before_v = len(voters)
-    before_c = len(candidates)
-    seed_sample_data(min_voters=min_v, min_candidates=min_c)
-    return jsonify({
-        'voters_before': before_v,
-        'voters_after': len(voters),
-        'candidates_before': before_c,
-        'candidates_after': len(candidates)
-    }), 200
 
 
 # Q1: Create Voter
@@ -392,8 +351,11 @@ def rla_plan():
 
 
 if __name__ == '__main__':
-    # seed richer defaults for local runs
-    seed_sample_data(min_voters=25, min_candidates=3)
+    # seed a couple of records for easier testing
+    voters[1] = {'voter_id': 1, 'name': 'Alice', 'age': 22, 'has_voted': False}
+    voters[2] = {'voter_id': 2, 'name': 'Bob', 'age': 30, 'has_voted': False}
+    candidates[1] = {'candidate_id': 1, 'name': 'John Doe', 'party': 'Green Party', 'votes': 0}
+    candidates[2] = {'candidate_id': 2, 'name': 'Jane Roe', 'party': 'Red Party', 'votes': 0}
     app.run(debug=True, port=8000)
 
 
