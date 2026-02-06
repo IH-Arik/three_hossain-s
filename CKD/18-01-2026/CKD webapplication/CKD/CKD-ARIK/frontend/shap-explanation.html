@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CKD Risk Factor Analysis - SHAP Explanation</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .shap-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 2rem;
+            color: white;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .shap-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .shap-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .shap-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .patient-summary {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .risk-high {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .risk-medium {
+            background: linear-gradient(45deg, #feca57, #ff9ff3);
+            color: #333;
+        }
+        
+        .risk-low {
+            background: linear-gradient(45deg, #48dbfb, #0abde3);
+            color: white;
+        }
+        
+        .shap-features {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .feature-item {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 10px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .feature-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-value {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-impact {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .impact-bar {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: #e9ecef;
+            overflow: hidden;
+            margin: 0 1rem;
+        }
+        
+        .impact-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+        
+        .impact-positive {
+            background: linear-gradient(90deg, #ff6b6b, #ee5a24);
+        }
+        
+        .impact-negative {
+            background: linear-gradient(90deg, #48dbfb, #0abde3);
+        }
+        
+        .impact-value {
+            font-weight: 600;
+            min-width: 60px;
+            text-align: right;
+        }
+        
+        .shap-chart {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .clinical-insights {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 15px;
+            padding: 2rem;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        
+        .insight-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .publication-quality {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+        }
+        
+        .methodology-box {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .export-buttons {
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .export-btn {
+            margin: 0 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .export-pdf {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .export-image {
+            background: linear-gradient(45deg, #48dbfb, #0abde3);
+            color: white;
+        }
+        
+        .export-json {
+            background: linear-gradient(45deg, #feca57, #ff9ff3);
+            color: #333;
+        }
+        
+        @media (max-width: 768px) {
+            .shap-container {
+                padding: 1rem;
+            }
+            
+            .shap-header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .feature-impact {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .impact-bar {
+                margin: 0.5rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 col-xl-8">
+                <div class="shap-container">
+                    <!-- Header -->
+                    <div class="shap-header">
+                        <h1><i class="fas fa-brain"></i> CKD Risk Factor Analysis</h1>
+                        <p>SHAP-based Explainable AI for Individual Patient Risk Assessment</p>
+                    </div>
+                    
+                    <!-- Patient Summary -->
+                    <div class="patient-summary">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h4><i class="fas fa-user"></i> Patient Profile</h4>
+                                <div id="patientInfo">
+                                    <p><strong>Patient ID:</strong> <span id="patientId">Loading...</span></p>
+                                    <p><strong>Age:</strong> <span id="patientAge">-</span> years</p>
+                                    <p><strong>eGFR:</strong> <span id="patientEgfr">-</span> mL/min/1.73m²</p>
+                                    <p><strong>Creatinine:</strong> <span id="patientCreatinine">-</span> mg/dL</p>
+                                    <p><strong>HbA1c:</strong> <span id="patientHba1c">-</span> %</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <h4><i class="fas fa-chart-line"></i> Risk Assessment</h4>
+                                <div id="riskAssessment">
+                                    <div class="risk-badge risk-low" id="riskBadge">
+                                        <i class="fas fa-shield-alt"></i> Low Risk
+                                    </div>
+                                    <h3 class="mt-3" id="riskProbability">12.5%</h3>
+                                    <p class="mb-0">CKD Probability</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- SHAP Features -->
+                    <div class="shap-features">
+                        <h4><i class="fas fa-list-ol"></i> Top Risk Factors (SHAP Analysis)</h4>
+                        <p class="text-muted">SHAP values show how each feature contributed to the final prediction</p>
+                        <div id="shapFeatures">
+                            <!-- Features will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- SHAP Chart -->
+                    <div class="shap-chart">
+                        <h4><i class="fas fa-chart-bar"></i> Risk Factor Contribution Chart</h4>
+                        <canvas id="shapChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <!-- Clinical Insights -->
+                    <div class="clinical-insights">
+                        <h4><i class="fas fa-lightbulb"></i> Clinical Insights & Recommendations</h4>
+                        <div id="clinicalInsights">
+                            <!-- Insights will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Methodology -->
+                    <div class="methodology-box">
+                        <h5><i class="fas fa-flask"></i> Methodology</h5>
+                        <div class="publication-quality">
+                            <p><strong>SHAP (SHapley Additive exPlanations)</strong> is a game-theoretic approach to explain the output of any machine learning model. It connects optimal credit allocation with local explanations using the classic Shapley values from game theory.</p>
+                            <p><strong>Model:</strong> Ensemble of Random Forest and Deep Learning models trained on 491 patients from PLoS ONE dataset (11.4% CKD prevalence).</p>
+                            <p><strong>Features:</strong> 24 clinical variables including demographics, laboratory values, and comorbidities.</p>
+                            <p><strong>Interpretation:</strong> Positive SHAP values increase CKD risk, negative values decrease risk. The magnitude indicates the strength of the effect.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Export Options -->
+                    <div class="export-buttons">
+                        <button class="export-btn export-pdf" onclick="exportToPDF()">
+                            <i class="fas fa-file-pdf"></i> Export PDF
+                        </button>
+                        <button class="export-btn export-image" onclick="exportChart()">
+                            <i class="fas fa-image"></i> Export Chart
+                        </button>
+                        <button class="export-btn export-json" onclick="exportData()">
+                            <i class="fas fa-code"></i> Export JSON
+                        </button>
+                    </div>
+                    
+                    <!-- References -->
+                    <div class="methodology-box">
+                        <h5><i class="fas fa-book"></i> References</h5>
+                        <div class="publication-quality">
+                            <p>1. Lundberg SM, Lee S-I. A Unified Approach to Interpreting Model Predictions. Adv Neural Inf Process Syst. 2017;30.</p>
+            <p>2. PLoS ONE Dataset: Chronic Kidney Disease Prediction using Clinical Variables and Machine Learning.</p>
+            <p>3. National Kidney Foundation. KDOQI Clinical Practice Guidelines for Chronic Kidney Disease.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- html2canvas for export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        // Sample data for demonstration
+        const sampleData = {
+            patientId: "PAT-001",
+            age: 65,
+            egfr: 45,
+            creatinine: 1.8,
+            hba1c: 7.2,
+            riskProbability: 0.325,
+            riskLevel: "medium",
+            shapValues: {
+                "Creatinine": 0.245,
+                "eGFR": -0.189,
+                "Age": 0.156,
+                "HbA1c": 0.134,
+                "Hypertension": 0.098,
+                "Diabetes": 0.087,
+                "BMI": 0.045,
+                "Cholesterol": 0.032,
+                "Triglycerides": 0.021,
+                "Smoking": 0.018
+            },
+            patientData: {
+                "Creatinine": 1.8,
+                "eGFR": 45,
+                "Age": 65,
+                "HbA1c": 7.2,
+                "Hypertension": 1,
+                "Diabetes": 1,
+                "BMI": 28.5,
+                "Cholesterol": 220,
+                "Triglycerides": 180,
+                "Smoking": 0
+            }
+        };
+        
+        // Initialize the page
+        function initializePage(data = sampleData) {
+            updatePatientInfo(data);
+            updateRiskAssessment(data);
+            updateShapFeatures(data);
+            createShapChart(data);
+            generateClinicalInsights(data);
+        }
+        
+        function updatePatientInfo(data) {
+            document.getElementById('patientId').textContent = data.patientId;
+            document.getElementById('patientAge').textContent = data.age;
+            document.getElementById('patientEgfr').textContent = data.egfr;
+            document.getElementById('patientCreatinine').textContent = data.creatinine;
+            document.getElementById('patientHba1c').textContent = data.hba1c;
+        }
+        
+        function updateRiskAssessment(data) {
+            const riskBadge = document.getElementById('riskBadge');
+            const riskProbability = document.getElementById('riskProbability');
+            
+            // Update risk badge
+            riskBadge.className = `risk-badge risk-${data.riskLevel}`;
+            
+            if (data.riskLevel === 'high') {
+                riskBadge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> High Risk';
+            } else if (data.riskLevel === 'medium') {
+                riskBadge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Medium Risk';
+            } else {
+                riskBadge.innerHTML = '<i class="fas fa-shield-alt"></i> Low Risk';
+            }
+            
+            // Update probability
+            riskProbability.textContent = `${(data.riskProbability * 100).toFixed(1)}%`;
+        }
+        
+        function updateShapFeatures(data) {
+            const container = document.getElementById('shapFeatures');
+            container.innerHTML = '';
+            
+            // Sort features by absolute SHAP value
+            const sortedFeatures = Object.entries(data.shapValues)
+                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                .slice(0, 8); // Top 8 features
+            
+            sortedFeatures.forEach(([feature, shapValue], index) => {
+                const featureDiv = document.createElement('div');
+                featureDiv.className = 'feature-item';
+                
+                const isPositive = shapValue > 0;
+                const impactClass = isPositive ? 'impact-positive' : 'impact-negative';
+                const impactIcon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
+                const impactText = isPositive ? 'Increases Risk' : 'Decreases Risk';
+                
+                const patientValue = data.patientData[feature] || 'N/A';
+                const formattedValue = typeof patientValue === 'number' ? patientValue.toFixed(1) : patientValue;
+                
+                featureDiv.innerHTML = `
+                    <div class="feature-name">
+                        <i class="fas fa-${index === 0 ? 'heartbeat' : index === 1 ? 'kidney' : 'user'}"></i>
+                        ${feature}
+                    </div>
+                    <div class="feature-value">Patient Value: ${formattedValue}</div>
+                    <div class="feature-impact">
+                        <span class="impact-value ${isPositive ? 'text-danger' : 'text-primary'}">
+                            <i class="fas ${impactIcon}"></i> ${impactText}
+                        </span>
+                        <div class="impact-bar">
+                            <div class="impact-fill ${impactClass}" style="width: ${Math.abs(shapValue) * 100}%"></div>
+                        </div>
+                        <span class="impact-value">${shapValue.toFixed(3)}</span>
+                    </div>
+                `;
+                
+                container.appendChild(featureDiv);
+            });
+        }
+        
+        function createShapChart(data) {
+            const ctx = document.getElementById('shapChart').getContext('2d');
+            
+            // Sort features by SHAP value
+            const sortedFeatures = Object.entries(data.shapValues)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            
+            const labels = sortedFeatures.map(([feature]) => feature);
+            const values = sortedFeatures.map(([, value]) => value);
+            const colors = values.map(value => value > 0 ? 'rgba(255, 107, 107, 0.8)' : 'rgba(72, 219, 251, 0.8)');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'SHAP Value',
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: colors.map(color => color.replace('0.8', '1')),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    const direction = value > 0 ? 'Increases' : 'Decreases';
+                                    return `${direction} CKD risk: ${Math.abs(value).toFixed(3)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'SHAP Value (Risk Impact)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Clinical Features'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function generateClinicalInsights(data) {
+            const container = document.getElementById('clinicalInsights');
+            container.innerHTML = '';
+            
+            const insights = [];
+            
+            // Generate insights based on top features
+            const topFeatures = Object.entries(data.shapValues)
+                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                .slice(0, 3);
+            
+            topFeatures.forEach(([feature, shapValue]) => {
+                const patientValue = data.patientData[feature];
+                const isPositive = shapValue > 0;
+                
+                let insight = '';
+                if (feature === 'Creatinine' && isPositive) {
+                    insight = `Elevated creatinine (${patientValue} mg/dL) is the strongest risk factor. Consider renal function monitoring and nephrology referral.`;
+                } else if (feature === 'eGFR' && !isPositive) {
+                    insight = `Reduced eGFR (${patientValue} mL/min/1.73m²) indicates decreased kidney function. Regular monitoring of renal function is recommended.`;
+                } else if (feature === 'Age' && isPositive) {
+                    insight = `Advanced age (${patientValue} years) contributes to CKD risk. Age-related kidney function decline should be considered in management.`;
+                } else if (feature === 'HbA1c' && isPositive) {
+                    insight = `Poor glycemic control (HbA1c ${patientValue}%) increases CKD risk. Intensive diabetes management may slow progression.`;
+                } else if (feature === 'Hypertension' && isPositive) {
+                    insight = `Hypertension is a significant risk factor. Strict blood pressure control (<130/80 mmHg) is recommended for renal protection.`;
+                } else if (feature === 'Diabetes' && isPositive) {
+                    insight = `Diabetes mellitus is a major contributor to CKD risk. Comprehensive diabetes management is essential.`;
+                }
+                
+                if (insight) {
+                    insights.push(insight);
+                }
+            });
+            
+            // Add general recommendation
+            insights.push(`Overall CKD risk is ${(data.riskProbability * 100).toFixed(1)}%. ${data.riskLevel === 'high' ? 'Immediate medical evaluation and intervention recommended.' : data.riskLevel === 'medium' ? 'Regular monitoring and risk factor modification advised.' : 'Continue routine medical care with periodic kidney function assessment.'}`);
+            
+            insights.forEach(insight => {
+                const insightDiv = document.createElement('div');
+                insightDiv.className = 'insight-item';
+                insightDiv.innerHTML = `<i class="fas fa-info-circle"></i> ${insight}`;
+                container.appendChild(insightDiv);
+            });
+        }
+        
+        function exportToPDF() {
+            // This would require additional setup for PDF generation
+            alert('PDF export functionality would require additional server-side implementation');
+        }
+        
+        function exportChart() {
+            const canvas = document.getElementById('shapChart');
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'shap-chart.png';
+            link.href = url;
+            link.click();
+        }
+        
+        function exportData() {
+            const data = {
+                patient: sampleData,
+                timestamp: new Date().toISOString(),
+                model: 'CKD Prediction Ensemble',
+                methodology: 'SHAP (SHapley Additive exPlanations)'
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = 'shap-analysis.json';
+            link.href = url;
+            link.click();
+        }
+        
+        // Initialize page on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+        });
+        
+        // Function to update with real API data
+        function updateWithApiData(patientData, predictionResult) {
+            const data = {
+                patientId: patientData.patientId || "Unknown",
+                age: patientData.age,
+                egfr: patientData.egfr,
+                creatinine: patientData.creatinine,
+                hba1c: patientData.hba1c,
+                riskProbability: predictionResult.probability,
+                riskLevel: predictionResult.probability >= 0.7 ? 'high' : predictionResult.probability >= 0.3 ? 'medium' : 'low',
+                shapValues: predictionResult.shap,
+                patientData: patientData
+            };
+            
+            initializePage(data);
+        }
+    </script>
+</body>
+</html>

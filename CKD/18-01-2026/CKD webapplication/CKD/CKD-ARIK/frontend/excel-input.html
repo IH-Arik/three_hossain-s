@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Value Input - CKD Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .excel-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        .excel-input {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px;
+            font-weight: 500;
+        }
+        .excel-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .unit-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-weight: normal;
+        }
+        .convert-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .result-box {
+            background: #e8f5e8;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .frontend-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #28a745;
+        }
+        .excel-sample {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .prediction-result {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .risk-high {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .risk-low {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="text-center mb-4">
+            <h1 class="text-white mb-3">
+                <i class="fas fa-file-excel"></i> Excel Value Input
+            </h1>
+            <p class="text-white">Enter Excel dataset values directly - automatic conversion to frontend units</p>
+        </div>
+
+        <div class="excel-card">
+            <h3 class="mb-4">
+                <i class="fas fa-calculator"></i> Excel Dataset Values Input
+            </h3>
+
+            <!-- Excel Sample Values -->
+            <div class="excel-sample">
+                <h5><i class="fas fa-info-circle"></i> Sample Excel Values (from dataset)</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Record 3:</strong><br>
+                        Creatinine: 57.0 μmol/L<br>
+                        eGFR: 99.8<br>
+                        Cholesterol: 6.4 mmol/L<br>
+                        Triglycerides: 1.8 mmol/L
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Record 1:</strong><br>
+                        Creatinine: 59.0 μmol/L<br>
+                        eGFR: 93.3<br>
+                        Cholesterol: 4.8 mmol/L<br>
+                        Triglycerides: 0.9 mmol/L
+                    </div>
+                </div>
+            </div>
+
+            <form id="excelForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="creatinineExcel" class="form-label">
+                            Creatinine <span class="unit-label">(μmol/L - Excel units)</span>
+                        </label>
+                        <input type="number" class="form-control excel-input" id="creatinineExcel" 
+                               value="57.0" step="0.1" min="0" max="200">
+                        <div class="form-text">Excel dataset uses μmol/L</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="egfrExcel" class="form-label">
+                            eGFR <span class="unit-label">(mL/min/1.73m²)</span>
+                        </label>
+                        <input type="number" class="form-control excel-input" id="egfrExcel" 
+                               value="99.8" step="0.1" min="0" max="200">
+                        <div class="form-text">Same units in Excel and frontend</div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="cholesterolExcel" class="form-label">
+                            Cholesterol <span class="unit-label">(mmol/L - Excel units)</span>
+                        </label>
+                        <input type="number" class="form-control excel-input" id="cholesterolExcel" 
+                               value="6.4" step="0.1" min="0" max="15">
+                        <div class="form-text">Excel dataset uses mmol/L</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="triglyceridesExcel" class="form-label">
+                            Triglycerides <span class="unit-label">(mmol/L - Excel units)</span>
+                        </label>
+                        <input type="number" class="form-control excel-input" id="triglyceridesExcel" 
+                               value="1.8" step="0.1" min="0" max="10">
+                        <div class="form-text">Excel dataset uses mmol/L</div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="ageExcel" class="form-label">Age</label>
+                        <input type="number" class="form-control excel-input" id="ageExcel" 
+                               value="56" min="0" max="120">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="hba1cExcel" class="form-label">HbA1c (%)</label>
+                        <input type="number" class="form-control excel-input" id="hba1cExcel" 
+                               value="5.9" step="0.1" min="0" max="15">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="bmiExcel" class="form-label">BMI</label>
+                        <input type="number" class="form-control excel-input" id="bmiExcel" 
+                               value="40.5" step="0.1" min="10" max="60">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="sbpExcel" class="form-label">Systolic BP</label>
+                        <input type="number" class="form-control excel-input" id="sbpExcel" 
+                               value="149" min="0" max="250">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="dbpExcel" class="form-label">Diastolic BP</label>
+                        <input type="number" class="form-control excel-input" id="dbpExcel" 
+                               value="86" min="0" max="150">
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="button" class="btn convert-btn" onclick="convertAndPredict()">
+                        <i class="fas fa-exchange-alt"></i> Convert & Predict
+                    </button>
+                </div>
+            </form>
+
+            <!-- Conversion Results -->
+            <div id="conversionResults" style="display: none;">
+                <h4 class="mt-4 mb-3">
+                    <i class="fas fa-calculator"></i> Conversion Results
+                </h4>
+                <div class="result-box">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Frontend Units (for sliders):</h6>
+                            <div id="frontendValues"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Excel Units (original):</h6>
+                            <div id="excelValues"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prediction Results -->
+            <div id="predictionResults" style="display: none;">
+                <h4 class="mt-4 mb-3">
+                    <i class="fas fa-heartbeat"></i> CKD Prediction Results
+                </h4>
+                <div id="predictionContent"></div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="mt-4">
+                <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadExcelSample(3)">
+                        Load Record 3 (57 μmol/L)
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadExcelSample(1)">
+                        Load Record 1 (59 μmol/L)
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadExcelSample(2)">
+                        Load Record 2 (52 μmol/L)
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="openDynamicSHAP()">
+                        Open Dynamic SHAP
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Excel sample data
+        const excelSamples = {
+            1: {
+                creatinine: 59.0,
+                egfr: 93.3,
+                cholesterol: 4.8,
+                triglycerides: 0.9,
+                age: 64,
+                hba1c: 5.9,
+                bmi: 40.2,
+                sbp: 144,
+                dbp: 87
+            },
+            2: {
+                creatinine: 52.0,
+                egfr: 105.8,
+                cholesterol: 6.4,
+                triglycerides: 1.8,
+                age: 52,
+                hba1c: 6.0,
+                bmi: 44.5,
+                sbp: 148,
+                dbp: 91
+            },
+            3: {
+                creatinine: 57.0,
+                egfr: 99.8,
+                cholesterol: 6.4,
+                triglycerides: 1.8,
+                age: 56,
+                hba1c: 5.9,
+                bmi: 40.5,
+                sbp: 149,
+                dbp: 86
+            }
+        };
+
+        function loadExcelSample(recordNumber) {
+            const sample = excelSamples[recordNumber];
+            if (sample) {
+                document.getElementById('creatinineExcel').value = sample.creatinine;
+                document.getElementById('egfrExcel').value = sample.egfr;
+                document.getElementById('cholesterolExcel').value = sample.cholesterol;
+                document.getElementById('triglyceridesExcel').value = sample.triglycerides;
+                document.getElementById('ageExcel').value = sample.age;
+                document.getElementById('hba1cExcel').value = sample.hba1c;
+                document.getElementById('bmiExcel').value = sample.bmi;
+                document.getElementById('sbpExcel').value = sample.sbp;
+                document.getElementById('dbpExcel').value = sample.dbp;
+                
+                // Auto convert and predict
+                convertAndPredict();
+            }
+        }
+
+        function convertAndPredict() {
+            // Get Excel values
+            const creatinineExcel = parseFloat(document.getElementById('creatinineExcel').value);
+            const egfrExcel = parseFloat(document.getElementById('egfrExcel').value);
+            const cholesterolExcel = parseFloat(document.getElementById('cholesterolExcel').value);
+            const triglyceridesExcel = parseFloat(document.getElementById('triglyceridesExcel').value);
+            const age = parseInt(document.getElementById('ageExcel').value);
+            const hba1c = parseFloat(document.getElementById('hba1cExcel').value);
+            const bmi = parseFloat(document.getElementById('bmiExcel').value);
+            const sbp = parseInt(document.getElementById('sbpExcel').value);
+            const dbp = parseInt(document.getElementById('dbpExcel').value);
+
+            // Convert to frontend units
+            const creatinineMgdl = creatinineExcel / 88.4;  // μmol/L to mg/dL
+            const cholesterolMgdl = cholesterolExcel * 38.67;  // mmol/L to mg/dL
+            const triglyceridesMgdl = triglyceridesExcel * 88.54;  // mmol/L to mg/dL
+
+            // Show conversion results
+            document.getElementById('conversionResults').style.display = 'block';
+            
+            const frontendHtml = `
+                <div class="frontend-value">
+                    Creatinine: ${creatinineMgdl.toFixed(2)} mg/dL<br>
+                    Cholesterol: ${Math.round(cholesterolMgdl)} mg/dL<br>
+                    Triglycerides: ${Math.round(triglyceridesMgdl)} mg/dL<br>
+                    eGFR: ${Math.round(egfrExcel)}<br>
+                    HbA1c: ${hba1c}<br>
+                    Age: ${age}<br>
+                    BMI: ${bmi}<br>
+                    SBP: ${sbp}<br>
+                    DBP: ${dbp}
+                </div>
+            `;
+
+            const excelHtml = `
+                <div>
+                    Creatinine: ${creatinineExcel} μmol/L<br>
+                    Cholesterol: ${cholesterolExcel} mmol/L<br>
+                    Triglycerides: ${triglyceridesExcel} mmol/L<br>
+                    eGFR: ${egfrExcel}<br>
+                    HbA1c: ${hba1c}<br>
+                    Age: ${age}<br>
+                    BMI: ${bmi}<br>
+                    SBP: ${sbp}<br>
+                    DBP: ${dbp}
+                </div>
+            `;
+
+            document.getElementById('frontendValues').innerHTML = frontendHtml;
+            document.getElementById('excelValues').innerHTML = excelHtml;
+
+            // Make prediction
+            makePrediction(creatinineMgdl, cholesterolMgdl, triglyceridesMgdl, egfrExcel, age, hba1c, bmi, sbp, dbp);
+        }
+
+        async function makePrediction(creatinine, cholesterol, triglycerides, egfr, age, hba1c, bmi, sbp, dbp) {
+            const apiData = {
+                age: age,
+                creatinine: creatinine,
+                cholesterol: cholesterol,
+                triglycerides: triglycerides,
+                hba1c: hba1c,
+                egfr: Math.round(egfr),
+                sbp: sbp,
+                dbp: dbp,
+                bmi: bmi,
+                time_to_event: 24,
+                gender: 1,
+                diabetes: 0,
+                chd: 0,
+                vascular: 0,
+                smoking: 0,
+                htn: 1,
+                dld: 1,
+                obesity: 1,
+                dld_meds: 0,
+                dm_meds: 0,
+                htn_meds: 1,
+                acei_arb: 0
+            };
+
+            try {
+                const response = await fetch('http://localhost:8000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(apiData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    displayPredictionResults(result, apiData);
+                } else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Prediction error:', error);
+                document.getElementById('predictionResults').style.display = 'block';
+                document.getElementById('predictionContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Error making prediction: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function displayPredictionResults(result, inputData) {
+            document.getElementById('predictionResults').style.display = 'block';
+            
+            const probability = result.probability;
+            const prediction = result.prediction;
+            const shapValues = result.shap || {};
+            
+            const riskClass = probability >= 0.3 ? 'risk-high' : 'risk-low';
+            const riskIcon = probability >= 0.3 ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle';
+            
+            // Check for creatinine and eGFR in SHAP
+            const creatinineInShap = Object.keys(shapValues).some(key => key.includes('Creatnine'));
+            const egfrInShap = Object.keys(shapValues).some(key => key.includes('eGFR'));
+            
+            let shapHtml = '';
+            if (creatinineInShap || egfrInShap) {
+                shapHtml = '<h6 class="mt-3">Key SHAP Features:</h6><ul class="list-unstyled">';
+                Object.entries(shapValues).forEach(([feature, value]) => {
+                    if (feature.includes('Creatnine') || feature.includes('eGFR')) {
+                        const direction = value > 0 ? '↑' : '↓';
+                        const impact = value > 0 ? 'Risk' : 'Protective';
+                        shapHtml += `<li><strong>${feature}:</strong> ${value.toFixed(4)} ${direction} (${impact})</li>`;
+                    }
+                });
+                shapHtml += '</ul>';
+            }
+
+            const predictionHtml = `
+                <div class="prediction-result ${riskClass}">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5><i class="${riskIcon}"></i> ${prediction}</h5>
+                            <p class="mb-2">
+                                <strong>Probability:</strong> ${(probability * 100).toFixed(1)}%
+                                <span class="badge bg-${probability >= 0.3 ? 'danger' : 'success'} ms-2">
+                                    ${probability >= 0.3 ? 'High Risk' : 'Low Risk'}
+                                </span>
+                            </p>
+                            <p class="mb-0">
+                                <strong>SHAP Features:</strong> ${Object.keys(shapValues).length} total
+                                ${creatinineInShap ? '<span class="badge bg-info ms-1">Creatinine</span>' : ''}
+                                ${egfrInShap ? '<span class="badge bg-info ms-1">eGFR</span>' : ''}
+                            </p>
+                            ${shapHtml}
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="mt-3">
+                                <button class="btn btn-success btn-sm" onclick="openDynamicSHAPWithValues()">
+                                    <i class="fas fa-chart-line"></i> View in Dynamic SHAP
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('predictionContent').innerHTML = predictionHtml;
+            
+            // Store values for Dynamic SHAP
+            window.currentExcelData = {
+                creatinine: inputData.creatinine,
+                cholesterol: inputData.cholesterol,
+                triglycerides: inputData.triglycerides,
+                egfr: inputData.egfr,
+                age: inputData.age,
+                hba1c: inputData.hba1c,
+                sbp: inputData.sbp,
+                dbp: inputData.dbp,
+                bmi: inputData.bmi
+            };
+        }
+
+        function openDynamicSHAP() {
+            window.open('http://localhost:8000/frontend/dynamic-shap.html', '_blank');
+        }
+
+        function openDynamicSHAPWithValues() {
+            if (window.currentExcelData) {
+                // Store data in localStorage for Dynamic SHAP to pick up
+                localStorage.setItem('excelData', JSON.stringify(window.currentExcelData));
+                window.open('http://localhost:8000/frontend/dynamic-shap.html', '_blank');
+            }
+        }
+
+        // Auto-load first sample on page load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                loadExcelSample(3);
+            }, 500);
+        });
+    </script>
+</body>
+</html>
