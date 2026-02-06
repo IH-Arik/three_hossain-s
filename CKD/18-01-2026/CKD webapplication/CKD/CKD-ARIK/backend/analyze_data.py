@@ -1,0 +1,20 @@
+import pandas as pd
+
+# Load and examine the creatinine values
+df = pd.read_excel('../pone.0199920.s002.xlsx')
+print('Creatinine Analysis:')
+print(f'Min: {df["CreatnineBaseline"].min()}')
+print(f'Max: {df["CreatnineBaseline"].max()}')
+print(f'Mean: {df["CreatnineBaseline"].mean():.2f}')
+print(f'Median: {df["CreatnineBaseline"].median()}')
+print()
+print('Sample values:')
+print(df['CreatnineBaseline'].head(10))
+print()
+print('CKD vs Non-CKD creatinine levels:')
+print(f'CKD Positive: Mean = {df[df["EventCKD35"] == 1]["CreatnineBaseline"].mean():.2f}')
+print(f'CKD Negative: Mean = {df[df["EventCKD35"] == 0]["CreatnineBaseline"].mean():.2f}')
+print()
+print('eGFR Analysis:')
+print(f'CKD Positive: Mean = {df[df["EventCKD35"] == 1]["eGFRBaseline"].mean():.2f}')
+print(f'CKD Negative: Mean = {df[df["EventCKD35"] == 0]["eGFRBaseline"].mean():.2f}')

@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic CKD Risk Analysis - Real-time SHAP Explanation</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .dynamic-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 2rem;
+            color: white;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dynamic-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .live-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #00ff00;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+        }
+        
+        .risk-meter {
+            height: 30px;
+            background: linear-gradient(90deg, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .risk-pointer {
+            position: absolute;
+            top: -10px;
+            width: 4px;
+            height: 50px;
+            background: white;
+            border-radius: 2px;
+            transition: left 1s ease-in-out;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .feature-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .feature-card.active {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.4);
+        }
+        
+        .shap-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.2);
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        
+        .shap-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1.5s ease-in-out;
+            background: linear-gradient(90deg, #ff6b6b, #ee5a24);
+        }
+        
+        .shap-fill.negative {
+            background: linear-gradient(90deg, #48dbfb, #0abde3);
+        }
+        
+        .real-time-chart {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .control-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .slider-container {
+            margin: 1rem 0;
+        }
+        
+        .custom-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .insight-stream {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        .insight-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid #00ff00;
+            animation: slideInLeft 0.5s ease;
+        }
+        
+        @keyframes slideInLeft {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .comparison-mode {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .scenario-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .scenario-card:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .scenario-card.active {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            z-index: 1000;
+        }
+        
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+        
+        .spinner-grow {
+            width: 3rem;
+            height: 3rem;
+        }
+        
+        @media (max-width: 768px) {
+            .dynamic-container {
+                padding: 1rem;
+            }
+            
+            .feature-card {
+                padding: 1rem;
+            }
+            
+            .control-panel {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-lg-12 col-xl-10">
+                <div class="dynamic-container">
+                    <!-- Loading Overlay -->
+                    <div id="loadingOverlay" class="loading-overlay d-none">
+                        <div class="loading-content">
+                            <div class="spinner-grow text-light" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3">Analyzing patient data...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Header -->
+                    <div class="text-center mb-4">
+                        <h1 class="display-5 fw-bold animate__animated animate__fadeInDown">
+                            <i class="fas fa-brain me-2"></i>
+                            Dynamic CKD Risk Analysis
+                        </h1>
+                        <p class="lead animate__animated animate__fadeInUp">
+                            <span class="live-indicator"></span>
+                            Real-time SHAP Explanation & Interactive Risk Modeling
+                        </p>
+                    </div>
+                    
+                    <!-- Main Content -->
+                    <div class="row">
+                        <!-- Left Panel - Controls -->
+                        <div class="col-lg-4">
+                            <div class="control-panel">
+                                <h5><i class="fas fa-sliders-h me-2"></i>Patient Controls</h5>
+                                
+                                <!-- Age Slider -->
+                                <div class="slider-container">
+                                    <label class="form-label">Age: <span id="ageValue">65</span> years</label>
+                                    <input type="range" class="custom-slider" id="ageSlider" min="18" max="100" value="65">
+                                </div>
+                                
+                                <!-- Creatinine Slider -->
+                                <div class="slider-container">
+                                    <label class="form-label">Creatinine: <span id="creatinineValue">1.2</span> mg/dL</label>
+                                    <input type="range" class="custom-slider" id="creatinineSlider" min="0.5" max="5" step="0.1" value="1.2">
+                                </div>
+                                
+                                <!-- eGFR Slider -->
+                                <div class="slider-container">
+                                    <label class="form-label">eGFR: <span id="egfrValue">90</span> mL/min/1.73m²</label>
+                                    <input type="range" class="custom-slider" id="egfrSlider" min="10" max="120" value="90">
+                                </div>
+                                
+                                <!-- HbA1c Slider -->
+                                <div class="slider-container">
+                                    <label class="form-label">HbA1c: <span id="hba1cValue">6.5</span> %</label>
+                                    <input type="range" class="custom-slider" id="hba1cSlider" min="4" max="15" step="0.1" value="6.5">
+                                </div>
+                                
+                                <!-- Creatinine Slider -->
+                                <div class="slider-container">
+                                    <label class="form-label">Creatinine: <span id="creatinineValue">0.8</span> mg/dL</label>
+                                    <input type="range" class="custom-slider" id="creatinineSlider" min="0.1" max="2.0" step="0.1" value="0.8">
+                                </div>
+                                
+                                <!-- Cholesterol Slider -->
+                                <div class="slider-container">
+                                    <label class="form-label">Cholesterol: <span id="cholesterolValue">180</span> mg/dL</label>
+                                    <input type="range" class="custom-slider" id="cholesterolSlider" min="80" max="400" value="180">
+                                </div>
+                                
+                                <!-- Triglycerides Slider -->
+                                <div class="slider-container">
+                                    <label class="form-label">Triglycerides: <span id="triglyceridesValue">120</span> mg/dL</label>
+                                    <input type="range" class="custom-slider" id="triglyceridesSlider" min="20" max="600" value="120">
+                                </div>
+                                
+                                <!-- Comorbidity Toggles -->
+                                <div class="mt-4">
+                                    <h6>Comorbidities</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="diabetesToggle" checked>
+                                        <label class="form-check-label" for="diabetesToggle">Diabetes</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="htnToggle" checked>
+                                        <label class="form-check-label" for="htnToggle">Hypertension</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="smokingToggle">
+                                        <label class="form-check-label" for="smokingToggle">Smoking</label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div class="d-grid gap-2 mt-4">
+                                    <button class="btn btn-light" onclick="updatePrediction()">
+                                        <i class="fas fa-sync-alt me-2"></i>Update Analysis
+                                    </button>
+                                    <button class="btn btn-outline-light" onclick="randomizePatient()">
+                                        <i class="fas fa-random me-2"></i>Random Patient
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Scenario Comparison -->
+                            <div class="comparison-mode">
+                                <h6><i class="fas fa-exchange-alt me-2"></i>Scenario Comparison</h6>
+                                <div class="scenario-card" onclick="loadScenario('optimal')">
+                                    <strong>Optimal Patient</strong>
+                                    <small class="d-block text-muted">Low risk profile</small>
+                                </div>
+                                <div class="scenario-card" onclick="loadScenario('typical')">
+                                    <strong>Typical Patient</strong>
+                                    <small class="d-block text-muted">Average risk profile</small>
+                                </div>
+                                <div class="scenario-card" onclick="loadScenario('highRisk')">
+                                    <strong>High Risk Patient</strong>
+                                    <small class="d-block text-muted">Multiple risk factors</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Panel - Analysis -->
+                        <div class="col-lg-8">
+                            <!-- Risk Meter -->
+                            <div class="text-center mb-4">
+                                <h4><i class="fas fa-tachometer-alt me-2"></i>CKD Risk Meter</h4>
+                                <div class="risk-meter">
+                                    <div class="risk-pointer" id="riskPointer" style="left: 30%;"></div>
+                                </div>
+                                <h3 id="riskPercentage" class="mt-2">30%</h3>
+                                <p id="riskLevel" class="mb-0">Medium Risk</p>
+                            </div>
+                            
+                            <!-- SHAP Features -->
+                            <div class="mb-4">
+                                <h5><i class="fas fa-list-ol me-2"></i>Dynamic Risk Factors 
+                                    <span id="featureCount" class="badge bg-info ms-2">0 features</span>
+                                </h5>
+                                <div id="shapFeatures">
+                                    <!-- Features will be populated dynamically -->
+                                </div>
+                            </div>
+                            
+                            <!-- Real-time Chart -->
+                            <div class="real-time-chart mb-4">
+                                <h5><i class="fas fa-chart-line me-2"></i>Real-time SHAP Analysis</h5>
+                                <canvas id="dynamicShapChart" width="400" height="200"></canvas>
+                            </div>
+                            
+                            <!-- Clinical Insights Stream -->
+                            <div class="mb-4">
+                                <h5><i class="fas fa-lightbulb me-2"></i>Live Clinical Insights</h5>
+                                <div class="insight-stream" id="insightStream">
+                                    <!-- Insights will be added dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // Dynamic SHAP Analysis System
+        class DynamicSHAP {
+            constructor() {
+                this.currentData = this.getDefaultData();
+                this.chart = null;
+                this.updateInterval = null;
+                this.isUpdating = false;
+                this.initializeChart();
+                this.bindEvents();
+                this.startRealTimeUpdates();
+            }
+            
+            getDefaultData() {
+                return {
+                    age: 65,
+                    creatinine: 1.2,
+                    egfr: 90,
+                    hba1c: 6.5,
+                    diabetes: true,
+                    htn: true,
+                    smoking: false,
+                    riskProbability: 0.30,
+                    shapValues: {
+                        'Creatinine': 0.15,
+                        'eGFR': -0.12,
+                        'Age': 0.10,
+                        'HbA1c': 0.08,
+                        'Diabetes': 0.06,
+                        'Hypertension': 0.05,
+                        'Smoking': 0.02,
+                        'BMI': 0.03
+                    }
+                };
+            }
+            
+            initializeChart() {
+                const ctx = document.getElementById('dynamicShapChart').getContext('2d');
+                
+                this.chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(this.currentData.shapValues),
+                        datasets: [{
+                            label: 'SHAP Value',
+                            data: Object.values(this.currentData.shapValues),
+                            backgroundColor: Object.values(this.currentData.shapValues).map(value => 
+                                value > 0 ? 'rgba(255, 107, 107, 0.8)' : 'rgba(72, 219, 251, 0.8)'
+                            ),
+                            borderColor: Object.values(this.currentData.shapValues).map(value => 
+                                value > 0 ? 'rgba(255, 107, 107, 1)' : 'rgba(72, 219, 251, 1)'
+                            ),
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const value = context.parsed.y;
+                                        const direction = value > 0 ? 'Increases' : 'Decreases';
+                                        return `${direction} CKD risk: ${Math.abs(value).toFixed(3)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'SHAP Value',
+                                    color: 'white'
+                                },
+                                ticks: {
+                                    color: 'white'
+                                },
+                                grid: {
+                                    color: 'rgba(255,255,255,0.1)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Clinical Features',
+                                    color: 'white'
+                                },
+                                ticks: {
+                                    color: 'white'
+                                },
+                                grid: {
+                                    color: 'rgba(255,255,255,0.1)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            bindEvents() {
+                // Slider events
+                document.getElementById('ageSlider').addEventListener('input', (e) => {
+                    document.getElementById('ageValue').textContent = e.target.value;
+                    this.currentData.age = parseInt(e.target.value);
+                });
+                
+                document.getElementById('creatinineSlider').addEventListener('input', (e) => {
+                    document.getElementById('creatinineValue').textContent = e.target.value;
+                    this.currentData.creatinine = parseFloat(e.target.value);
+                });
+                
+                document.getElementById('egfrSlider').addEventListener('input', (e) => {
+                    document.getElementById('egfrValue').textContent = e.target.value;
+                    this.currentData.egfr = parseInt(e.target.value);
+                });
+                
+                document.getElementById('hba1cSlider').addEventListener('input', (e) => {
+                    document.getElementById('hba1cValue').textContent = e.target.value;
+                    this.currentData.hba1c = parseFloat(e.target.value);
+                });
+                
+                // Toggle events
+                document.getElementById('diabetesToggle').addEventListener('change', (e) => {
+                    this.currentData.diabetes = e.target.checked;
+                });
+                
+                document.getElementById('htnToggle').addEventListener('change', (e) => {
+                    this.currentData.htn = e.target.checked;
+                });
+                
+                document.getElementById('smokingToggle').addEventListener('change', (e) => {
+                    this.currentData.smoking = e.target.checked;
+                });
+            }
+            
+            startRealTimeUpdates() {
+                // Update every 5 seconds with subtle variations
+                this.updateInterval = setInterval(() => {
+                    if (!this.isUpdating) {
+                        this.simulateRealTimeUpdate();
+                    }
+                }, 5000);
+            }
+            
+            simulateRealTimeUpdate() {
+                // Add small random variations to simulate real-time monitoring
+                const variation = (Math.random() - 0.5) * 0.02;
+                this.currentData.riskProbability = Math.max(0, Math.min(1, 
+                    this.currentData.riskProbability + variation));
+                
+                this.updateRiskDisplay();
+                this.addInsight('Real-time monitoring: Risk adjusted by ' + 
+                    (variation > 0 ? '+' : '') + (variation * 100).toFixed(1) + '%');
+            }
+            
+            async updatePrediction() {
+                if (this.isUpdating) return;
+                
+                this.isUpdating = true;
+                this.showLoading(true);
+                
+                try {
+                    // Simulate API call
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    // Calculate new risk based on current values
+                    this.calculateRisk();
+                    this.updateAllDisplays();
+                    this.addInsight('Analysis updated with current patient parameters');
+                    
+                } catch (error) {
+                    console.error('Update failed:', error);
+                    this.addInsight('Error: Unable to update analysis');
+                } finally {
+                    this.isUpdating = false;
+                    this.showLoading(false);
+                }
+            }
+            
+            calculateRisk() {
+                let risk = 0.05; // Base risk
+                
+                // Age contribution
+                risk += (this.currentData.age - 40) * 0.005;
+                
+                // Creatinine contribution
+                risk += (this.currentData.creatinine - 1.0) * 0.15;
+                
+                // eGFR contribution (inverse)
+                risk += (90 - this.currentData.egfr) * 0.003;
+                
+                // HbA1c contribution
+                risk += (this.currentData.hba1c - 5.5) * 0.08;
+                
+                // Comorbidity contributions
+                if (this.currentData.diabetes) risk += 0.12;
+                if (this.currentData.htn) risk += 0.08;
+                if (this.currentData.smoking) risk += 0.05;
+                
+                this.currentData.riskProbability = Math.max(0, Math.min(1, risk));
+                
+                // Update SHAP values
+                this.updateSHAPValues();
+            }
+            
+            updateSHAPValues() {
+                const shapValues = {};
+                
+                // Calculate SHAP values based on current data
+                shapValues['Creatinine'] = (this.currentData.creatinine - 1.0) * 0.2;
+                shapValues['eGFR'] = -(90 - this.currentData.egfr) * 0.004;
+                shapValues['Age'] = (this.currentData.age - 50) * 0.008;
+                shapValues['HbA1c'] = (this.currentData.hba1c - 6.0) * 0.1;
+                shapValues['Diabetes'] = this.currentData.diabetes ? 0.12 : 0;
+                shapValues['Hypertension'] = this.currentData.htn ? 0.08 : 0;
+                shapValues['Smoking'] = this.currentData.smoking ? 0.05 : 0;
+                shapValues['BMI'] = 0.03; // Fixed value for demo
+                
+                this.currentData.shapValues = shapValues;
+            }
+            
+            updateAllDisplays() {
+                this.updateRiskDisplay();
+                this.updateSHAPFeatures();
+                this.updateChart();
+            }
+            
+            updateRiskDisplay() {
+                const percentage = Math.round(this.currentData.riskProbability * 100);
+                const pointerPosition = this.currentData.riskProbability * 100;
+                
+                document.getElementById('riskPointer').style.left = pointerPosition + '%';
+                document.getElementById('riskPercentage').textContent = percentage + '%';
+                
+                let riskLevel = 'Low Risk';
+                if (this.currentData.riskProbability >= 0.7) {
+                    riskLevel = 'High Risk';
+                } else if (this.currentData.riskProbability >= 0.3) {
+                    riskLevel = 'Medium Risk';
+                }
+                
+                document.getElementById('riskLevel').textContent = riskLevel;
+            }
+            
+            updateSHAPFeatures() {
+                const container = document.getElementById('shapFeatures');
+                container.innerHTML = '';
+                
+                // Sort features by absolute SHAP value
+                const sortedFeatures = Object.entries(this.currentData.shapValues)
+                    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                    .slice(0, 6);
+                
+                sortedFeatures.forEach(([feature, shapValue], index) => {
+                    const featureCard = document.createElement('div');
+                    featureCard.className = 'feature-card animate__animated animate__fadeInUp';
+                    featureCard.style.animationDelay = (index * 0.1) + 's';
+                    
+                    const isPositive = shapValue > 0;
+                    const patientValue = this.getPatientValue(feature);
+                    
+                    featureCard.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">${feature}</h6>
+                                <small>Patient Value: ${patientValue}</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-${isPositive ? 'danger' : 'info'}">
+                                    ${isPositive ? '↑' : '↓'} ${Math.abs(shapValue).toFixed(3)}
+                                </div>
+                                <small>${isPositive ? 'Risk' : 'Protective'}</small>
+                            </div>
+                        </div>
+                        <div class="shap-bar">
+                            <div class="shap-fill ${isPositive ? '' : 'negative'}" 
+                                 style="width: ${Math.abs(shapValue) * 100}%"></div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(featureCard);
+                });
+            }
+            
+            getPatientValue(feature) {
+                const valueMap = {
+                    'Creatinine': this.currentData.creatinine.toFixed(1) + ' mg/dL',
+                    'eGFR': this.currentData.egfr + ' mL/min/1.73m²',
+                    'Age': this.currentData.age + ' years',
+                    'HbA1c': this.currentData.hba1c.toFixed(1) + '%',
+                    'Diabetes': this.currentData.diabetes ? 'Yes' : 'No',
+                    'Hypertension': this.currentData.htn ? 'Yes' : 'No',
+                    'Smoking': this.currentData.smoking ? 'Yes' : 'No',
+                    'BMI': '28.5 kg/m²'
+                };
+                
+                return valueMap[feature] || 'N/A';
+            }
+            
+            updateChart() {
+                if (!this.chart) return;
+                
+                const labels = Object.keys(this.currentData.shapValues);
+                const values = Object.values(this.currentData.shapValues);
+                const colors = values.map(value => 
+                    value > 0 ? 'rgba(255, 107, 107, 0.8)' : 'rgba(72, 219, 251, 0.8)'
+                );
+                
+                this.chart.data.labels = labels;
+                this.chart.data.datasets[0].data = values;
+                this.chart.data.datasets[0].backgroundColor = colors;
+                this.chart.data.datasets[0].borderColor = colors.map(color => color.replace('0.8', '1'));
+                
+                this.chart.update('active');
+            }
+            
+            addInsight(message) {
+                const stream = document.getElementById('insightStream');
+                const insight = document.createElement('div');
+                insight.className = 'insight-item';
+                insight.innerHTML = `
+                    <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+                    <div>${message}</div>
+                `;
+                
+                stream.insertBefore(insight, stream.firstChild);
+                
+                // Keep only last 10 insights
+                while (stream.children.length > 10) {
+                    stream.removeChild(stream.lastChild);
+                }
+            }
+            
+            showLoading(show) {
+                const overlay = document.getElementById('loadingOverlay');
+                if (show) {
+                    overlay.classList.remove('d-none');
+                } else {
+                    overlay.classList.add('d-none');
+                }
+            }
+            
+            loadScenario(scenario) {
+                const scenarios = {
+                    optimal: {
+                        age: 35,
+                        creatinine: 0.8,
+                        egfr: 110,
+                        hba1c: 5.2,
+                        diabetes: false,
+                        htn: false,
+                        smoking: false
+                    },
+                    typical: {
+                        age: 55,
+                        creatinine: 1.2,
+                        egfr: 85,
+                        hba1c: 6.8,
+                        diabetes: false,
+                        htn: true,
+                        smoking: false
+                    },
+                    highRisk: {
+                        age: 75,
+                        creatinine: 2.5,
+                        egfr: 35,
+                        hba1c: 9.5,
+                        diabetes: true,
+                        htn: true,
+                        smoking: true
+                    }
+                };
+                
+                const data = scenarios[scenario];
+                if (data) {
+                    // Update all controls
+                    document.getElementById('ageSlider').value = data.age;
+                    document.getElementById('ageValue').textContent = data.age;
+                    
+                    document.getElementById('creatinineSlider').value = data.creatinine;
+                    document.getElementById('creatinineValue').textContent = data.creatinine;
+                    
+                    document.getElementById('egfrSlider').value = data.egfr;
+                    document.getElementById('egfrValue').textContent = data.egfr;
+                    
+                    document.getElementById('hba1cSlider').value = data.hba1c;
+                    document.getElementById('hba1cValue').textContent = data.hba1c;
+                    
+                    document.getElementById('diabetesToggle').checked = data.diabetes;
+                    document.getElementById('htnToggle').checked = data.htn;
+                    document.getElementById('smokingToggle').checked = data.smoking;
+                    
+                    // Update current data
+                    Object.assign(this.currentData, data);
+                    
+                    // Update analysis
+                    this.updatePrediction();
+                    
+                    this.addInsight(`Loaded ${scenario} scenario`);
+                }
+            }
+        }
+        
+        // Global functions
+        let dynamicSHAP;
+        
+        function updatePrediction() {
+            dynamicSHAP.updatePrediction();
+        }
+        
+        function randomizePatient() {
+            dynamicSHAP.currentData = {
+                age: Math.floor(Math.random() * 60) + 30,
+                creatinine: Math.random() * 3 + 0.5,
+                egfr: Math.floor(Math.random() * 80) + 30,
+                hba1c: Math.random() * 8 + 4,
+                diabetes: Math.random() > 0.5,
+                htn: Math.random() > 0.4,
+                smoking: Math.random() > 0.6
+            };
+            
+            // Update controls
+            document.getElementById('ageSlider').value = dynamicSHAP.currentData.age;
+            document.getElementById('ageValue').textContent = dynamicSHAP.currentData.age;
+            
+            document.getElementById('creatinineSlider').value = dynamicSHAP.currentData.creatinine;
+            document.getElementById('creatinineValue').textContent = dynamicSHAP.currentData.creatinine.toFixed(1);
+            
+            document.getElementById('egfrSlider').value = dynamicSHAP.currentData.egfr;
+            document.getElementById('egfrValue').textContent = dynamicSHAP.currentData.egfr;
+            
+            document.getElementById('hba1cSlider').value = dynamicSHAP.currentData.hba1c;
+            document.getElementById('hba1cValue').textContent = dynamicSHAP.currentData.hba1c.toFixed(1);
+            
+            document.getElementById('diabetesToggle').checked = dynamicSHAP.currentData.diabetes;
+            document.getElementById('htnToggle').checked = dynamicSHAP.currentData.htn;
+            document.getElementById('smokingToggle').checked = dynamicSHAP.currentData.smoking;
+            
+            dynamicSHAP.updatePrediction();
+        }
+        
+        function loadScenario(scenario) {
+            dynamicSHAP.loadScenario(scenario);
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            dynamicSHAP = new DynamicSHAP();
+            
+            // Initial update
+            setTimeout(() => {
+                dynamicSHAP.updatePrediction();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
